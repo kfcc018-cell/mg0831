@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부서별 검사일정 및 휴가 통합 관리 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Data Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-inner">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">부서별 검사 & 휴가 일정 관리</h1>
+                        <p class="text-xs text-slate-400">Audit & Leave Management System</p>
+                    </div>
+                </div>
+
+                <!-- Page Navigation Tabs -->
+                <nav class="hidden md:flex space-x-1 bg-slate-800 p-1 rounded-xl text-sm font-medium">
+                    <button onclick="switchTab('calendar')" id="nav-calendar" class="px-4 py-2 rounded-lg transition-all text-white bg-indigo-600 shadow flex items-center gap-2">
+                        <i class="fa-regular fa-calendar-days"></i> 월별 일정표
+                    </button>
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie"></i> 시각화 대시보드
+                    </button>
+                    <button onclick="switchTab('list')" id="nav-list" class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check"></i> 검사 현황목록
+                    </button>
+                    <button onclick="switchTab('team')" id="nav-team" class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-users"></i> 검사팀 및 휴가관리
+                    </button>
+                </nav>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="openAuditModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 shadow transition">
+                        <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">검사 등록</span>
+                    </button>
+                    <button onclick="openVacationModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 shadow transition">
+                        <i class="fa-solid fa-umbrella-beach"></i> <span class="hidden sm:inline">휴가 등록</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Row -->
+        <div class="md:hidden flex border-t border-slate-800 bg-slate-900 overflow-x-auto text-xs py-2 px-2 gap-1 custom-scrollbar">
+            <button onclick="switchTab('calendar')" id="mobile-nav-calendar" class="px-3 py-1.5 rounded-md whitespace-nowrap bg-indigo-600 text-white">월별 일정표</button>
+            <button onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="px-3 py-1.5 rounded-md whitespace-nowrap text-slate-300 hover:bg-slate-800">시각화 대시보드</button>
+            <button onclick="switchTab('list')" id="mobile-nav-list" class="px-3 py-1.5 rounded-md whitespace-nowrap text-slate-300 hover:bg-slate-800">검사 현황목록</button>
+            <button onclick="switchTab('team')" id="mobile-nav-team" class="px-3 py-1.5 rounded-md whitespace-nowrap text-slate-300 hover:bg-slate-800">팀 & 휴가관리</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- ================= PAGE 1: MONTHLY CALENDAR ================= -->
+        <section id="page-calendar" class="space-y-6">
+            <!-- Calendar Controls Header -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <button onclick="changeMonth(-1)" class="w-10 h-10 rounded-xl border border-slate-200 hover:bg-slate-100 flex items-center justify-center transition text-slate-600">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h2 id="current-month-year" class="text-xl sm:text-2xl font-bold text-slate-800 min-w-[160px] text-center">2026년 9월</h2>
+                    <button onclick="changeMonth(1)" class="w-10 h-10 rounded-xl border border-slate-200 hover:bg-slate-100 flex items-center justify-center transition text-slate-600">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                    <button onclick="goToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition border border-slate-300">오늘</button>
+                </div>
+
+                <!-- Legend Badges -->
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 text-blue-800 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> 종합검사
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-purple-600"></span> 자금세탁검사
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-600"></span> 부문검사
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-rose-600"></span> 합병검사
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-amber-600"></span> 팀원 휴가
+                    </span>
+                </div>
+            </div>
+
+            <!-- Calendar View Grid -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <!-- Day Names Header -->
+                <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-bold text-slate-600 py-3">
+                    <div class="text-rose-500">일 (SUN)</div>
+                    <div>월 (MON)</div>
+                    <div>화 (TUE)</div>
+                    <div>수 (WED)</div>
+                    <div>목 (THU)</div>
+                    <div>금 (FRI)</div>
+                    <div class="text-blue-500">토 (SAT)</div>
+                </div>
+                <!-- Calendar Body -->
+                <div id="calendar-grid" class="grid grid-cols-7 auto-rows-fr gap-px bg-slate-200 min-h-[600px]">
+                    <!-- Days generated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 2: VISUALIZATION DASHBOARD ================= -->
+        <section id="page-dashboard" class="hidden space-y-6">
+            <!-- Summary Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3.5 rounded-xl bg-blue-50 text-blue-600">
+                        <i class="fa-solid fa-file-signature text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">이번 달 진행 검사</p>
+                        <h3 id="stat-total-audits" class="text-2xl font-extrabold text-slate-800">0건</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3.5 rounded-xl bg-purple-50 text-purple-600">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">자금세탁검사</p>
+                        <h3 id="stat-aml-count" class="text-2xl font-extrabold text-slate-800">0건</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3.5 rounded-xl bg-indigo-50 text-indigo-600">
+                        <i class="fa-solid fa-user-group text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">투입 검사 인원 (팀장 포함)</p>
+                        <h3 id="stat-team-count" class="text-2xl font-extrabold text-slate-800">5명</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3.5 rounded-xl bg-amber-50 text-amber-600">
+                        <i class="fa-solid fa-plane-departure text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">이번 달 휴가 사용 건수</p>
+                        <h3 id="stat-vacation-count" class="text-2xl font-extrabold text-slate-800">0일</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Container -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Audit Types Distribution -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-indigo-600"></i> 검사 유형별 비중
+                        </h3>
+                        <span class="text-xs text-slate-400">월별 통계</span>
+                    </div>
+                    <div class="h-64 relative flex items-center justify-center">
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Domain Workload Allocation -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-indigo-600"></i> 검사 영역별 담당 및 투입 건수
+                        </h3>
+                        <span class="text-xs text-slate-400">4대 영역 (조직, 회계, 여신, 사고예방)</span>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="domainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Department Audit Timeline Visualizer -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-timeline text-indigo-600"></i> 피검사 부서별 검사 수행 타임라인 (주중 일정 Visualizer)
+                </h3>
+                <div id="timeline-container" class="space-y-4">
+                    <!-- Timeline Items rendered via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 3: AUDIT LIST & SEARCH ================= -->
+        <section id="page-list" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex flex-col md:flex-row items-md-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">검사 일정 및 상세 현황</h2>
+                        <p class="text-xs text-slate-500">등록된 전체 부서 검사 일정을 조회하고 관리합니다.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="filter-type" onchange="renderAuditTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ALL">전체 검사 유형</option>
+                            <option value="종합검사">종합검사</option>
+                            <option value="자금세탁검사">자금세탁검사</option>
+                            <option value="부문검사">부문검사</option>
+                            <option value="합병검사">합병검사</option>
+                        </select>
+                        <button onclick="openAuditModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                            <i class="fa-solid fa-plus mr-1"></i> 신규 검사 등록
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                <th class="p-3">부서명</th>
+                                <th class="p-3">검사 유형</th>
+                                <th class="p-3">기간 구분</th>
+                                <th class="p-3">검사 일정</th>
+                                <th class="p-3">검사팀 구성 (팀장 + 팀원)</th>
+                                <th class="p-3">영역별 담당자</th>
+                                <th class="p-3 text-center">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- Table rows injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 4: TEAM & VACATION MANAGEMENT ================= -->
+        <section id="page-team" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left: Team Roster & Roles -->
+                <div class="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 border-slate-200">
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-user-shield text-indigo-600"></i> 검사팀원 목록 (4~5명)
+                        </h2>
+                        <span class="text-xs bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-bold">1개 팀 운용</span>
+                    </div>
+                    <p class="text-xs text-slate-500">팀장을 포함하여 4~5명으로 구성되며, 4개 핵심 영역을 분담하여 검사를 수행합니다.</p>
+                    
+                    <div id="team-roster-list" class="space-y-3">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right: Team Vacation Tracker -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3 border-slate-200">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-umbrella-beach text-amber-500"></i> 검사팀 휴가 관리 및 등록 현황
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5">검사 일정 수립 시 팀원 휴가 일정과의 중복을 방지하세요.</p>
+                        </div>
+                        <button onclick="openVacationModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow">
+                            <i class="fa-solid fa-plus mr-1"></i> 휴가 등록
+                        </button>
+                    </div>
+
+                    <!-- Vacation List Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-3">팀원명</th>
+                                    <th class="p-3">직책 / 담당 영역</th>
+                                    <th class="p-3">휴가 시작일</th>
+                                    <th class="p-3">휴가 종료일</th>
+                                    <th class="p-3">사유 및 메모</th>
+                                    <th class="p-3 text-center">삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vacation-table-body" class="divide-y divide-slate-200 text-sm">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: ADD / EDIT AUDIT -->
+    <div id="auditModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 my-8">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800" id="modal-title">새 검사 일정 등록</h3>
+                <button onclick="closeAuditModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <form id="auditForm" onsubmit="handleAuditSubmit(event)" class="space-y-4 mt-4">
+                <input type="hidden" id="audit-id" value="">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">피검사 부서명 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="audit-dept" required placeholder="예: 자산운용부, 디지털금융부" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">검사 유형 <span class="text-rose-500">*</span></label>
+                        <select id="audit-type" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="종합검사">종합검사</option>
+                            <option value="자금세탁검사">자금세탁검사 (AML)</option>
+                            <option value="부문검사">부문검사</option>
+                            <option value="합병검사">합병검사</option>
+                            <option value="특별검사">특별검사</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">검사 착수일 (시작일) <span class="text-rose-500">*</span></label>
+                        <input type="date" id="audit-start-date" required onchange="calculateEndDate()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">검사 기간 선택 (주중 기준) <span class="text-rose-500">*</span></label>
+                        <select id="audit-duration" onchange="calculateEndDate()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="3">주중 3일 (3 Days)</option>
+                            <option value="5">주중 5일 (5 Days)</option>
+                            <option value="7">주중 7일 (7 Days - 주말 제외)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/70 p-3 rounded-lg border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-medium">
+                    <span><i class="fa-solid fa-calendar-check text-indigo-600 mr-1"></i> 주말 제외 자동 계산 종료일:</span>
+                    <span id="calculated-end-date-display" class="font-bold text-indigo-700 text-sm">날짜를 선택하세요</span>
+                </div>
+
+                <!-- Audit Team Assignment Section -->
+                <div class="border-t border-slate-200 pt-3">
+                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-users-gear text-indigo-600"></i> 검사팀 투입 및 4대 영역 담당자 지정 (4~5명)
+                    </h4>
+                    
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="font-bold text-slate-700">👑 팀장 (총괄)</span>
+                            <select id="assign-leader" class="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"></select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="font-bold text-slate-700">🏢 조직일반 담당</span>
+                            <select id="assign-org" class="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"></select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="font-bold text-slate-700">📊 경영회계 담당</span>
+                            <select id="assign-acc" class="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"></select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="font-bold text-slate-700">💳 여신관리 담당</span>
+                            <select id="assign-credit" class="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"></select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                            <span class="font-bold text-slate-700">🛡️ 사고예방 담당</span>
+                            <select id="assign-risk" class="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">비고 및 중점 검사항목</label>
+                    <textarea id="audit-memo" rows="2" placeholder="주요 검사 목적 또는 특이사항을 적어주세요." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" onclick="closeAuditModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold shadow">저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD VACATION -->
+    <div id="vacationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800">팀원 휴가 등록</h3>
+                <button onclick="closeVacationModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <form id="vacationForm" onsubmit="handleVacationSubmit(event)" class="space-y-4 mt-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">팀원 선택 <span class="text-rose-500">*</span></label>
+                    <select id="vacation-member" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"></select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">휴가 시작일 <span class="text-rose-500">*</span></label>
+                        <input type="date" id="vacation-start" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">휴가 종료일 <span class="text-rose-500">*</span></label>
+                        <input type="date" id="vacation-end" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">휴가 구분 / 메모</label>
+                    <input type="text" id="vacation-reason" placeholder="예: 연차휴가, 병가, 포상휴가" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" onclick="closeVacationModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold shadow">휴가 등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Default Team Roster (4~5 members including Team Leader)
+        const teamMembers = [
+            { id: "m1", name: "김철수", role: "팀장", primaryDomain: "총괄 및 합병검사" },
+            { id: "m2", name: "이영희", role: "수석검사역", primaryDomain: "조직일반" },
+            { id: "m3", name: "박민수", role: "책임검사역", primaryDomain: "경영회계" },
+            { id: "m4", name: "정다은", role: "선임검사역", primaryDomain: "여신관리" },
+            { id: "m5", name: "최동현", role: "검사역", primaryDomain: "사고예방" }
+        ];
+
+        // Initial Sample Audit Data
+        let audits = [
+            {
+                id: "aud-1",
+                dept: "강남지점",
+                type: "종합검사",
+                durationDays: 5,
+                startDate: "2026-09-07",
+                endDate: "2026-09-11",
+                teamLeader: "김철수",
+                domainOrg: "이영희",
+                domainAcc: "박민수",
+                domainCredit: "정다은",
+                domainRisk: "최동현",
+                memo: "여신 실태 및 사고예방 집중 점검"
+            },
+            {
+                id: "aud-2",
+                dept: "자금운용부",
+                type: "자금세탁검사",
+                durationDays: 3,
+                startDate: "2026-09-15",
+                endDate: "2026-09-17",
+                teamLeader: "김철수",
+                domainOrg: "이영희",
+                domainAcc: "박민수",
+                domainCredit: "정다은",
+                domainRisk: "최동현",
+                memo: "AML 고객확인의무 및 의심거래보고 점검"
+            },
+            {
+                id: "aud-3",
+                dept: "여신심사부",
+                type: "부문검사",
+                durationDays: 3,
+                startDate: "2026-09-21",
+                endDate: "2026-09-23",
+                teamLeader: "김철수",
+                domainOrg: "이영희",
+                domainAcc: "박민수",
+                domainCredit: "정다은",
+                domainRisk: "최동현",
+                memo: "대출 승인 절차 및 담보평가 적정성"
+            },
+            {
+                id: "aud-4",
+                dept: "부산중앙법인",
+                type: "합병검사",
+                durationDays: 7,
+                startDate: "2026-09-23",
+                endDate: "2026-10-01",
+                teamLeader: "김철수",
+                domainOrg: "이영희",
+                domainAcc: "박민수",
+                domainCredit: "정다은",
+                domainRisk: "최동현",
+                memo: "합병 전 자산부채 실사 및 조직통합 준비"
+            }
+        ];
+
+        // Initial Sample Vacation Data
+        let vacations = [
+            { id: "vac-1", memberId: "m3", memberName: "박민수", startDate: "2026-09-14", endDate: "2026-09-14", reason: "개인연차" },
+            { id: "vac-2", memberId: "m5", memberName: "최동현", startDate: "2026-09-18", endDate: "2026-09-18", reason: "포상휴가" }
+        ];
+
+        // Calendar State (Default September 2026)
+        let currentYear = 2026;
+        let currentMonth = 8; // 0-indexed: 8 = September
+
+        // Chart instances
+        let typeChartInstance = null;
+        let domainChartInstance = null;
+
+        // Calculate End Date skipping weekends (주중 3일, 5일, 7일)
+        function addWeekdays(startDateStr, days) {
+            if (!startDateStr) return "";
+            let cur = new Date(startDateStr);
+            let added = 1; // start day counts as day 1
+            
+            while (added < days) {
+                cur.setDate(cur.getDate() + 1);
+                let dayOfWeek = cur.getDay();
+                // 0 is Sunday, 6 is Saturday
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    added++;
+                }
+            }
+            return cur.toISOString().split('T')[0];
+        }
+
+        function calculateEndDate() {
+            const startVal = document.getElementById('audit-start-date').value;
+            const duration = parseInt(document.getElementById('audit-duration').value);
+            const display = document.getElementById('calculated-end-date-display');
+
+            if (!startVal) {
+                display.innerText = "착수일을 선택해 주세요";
+                return;
+            }
+
+            const endDate = addWeekdays(startVal, duration);
+            display.innerText = `${endDate} (총 주중 ${duration}일간 수행)`;
+        }
+
+        function switchTab(tabName) {
+            const tabs = ['calendar', 'dashboard', 'list', 'team'];
+            
+            tabs.forEach(t => {
+                const page = document.getElementById(`page-${t}`);
+                const navBtn = document.getElementById(`nav-${t}`);
+                const mobBtn = document.getElementById(`mobile-nav-${t}`);
+
+                if (t === tabName) {
+                    page.classList.remove('hidden');
+                    if (navBtn) {
+                        navBtn.className = "px-4 py-2 rounded-lg transition-all text-white bg-indigo-600 shadow flex items-center gap-2 font-medium";
+                    }
+                    if (mobBtn) {
+                        mobBtn.className = "px-3 py-1.5 rounded-md whitespace-nowrap bg-indigo-600 text-white";
+                    }
+                } else {
+                    page.classList.add('hidden');
+                    if (navBtn) {
+                        navBtn.className = "px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2 font-medium";
+                    }
+                    if (mobBtn) {
+                        mobBtn.className = "px-3 py-1.5 rounded-md whitespace-nowrap text-slate-300 hover:bg-slate-800";
+                    }
+                }
+            });
+
+            if (tabName === 'dashboard') {
+                renderDashboard();
+            } else if (tabName === 'calendar') {
+                renderCalendar();
+            } else if (tabName === 'list') {
+                renderAuditTable();
+            } else if (tabName === 'team') {
+                renderTeamAndVacation();
+            }
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+
+        function goToday() {
+            const today = new Date();
+            currentYear = today.getFullYear();
+            currentMonth = today.getMonth();
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const titleElem = document.getElementById('current-month-year');
+            titleElem.innerText = `${currentYear}년 ${currentMonth + 1}월`;
+
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+
+            const startDayOfWeek = firstDay.getDay(); // 0 = Sun
+            const totalDays = lastDay.getDate();
+
+            // Previous month tail days
+            const prevLastDay = new Date(currentYear, currentMonth, 0).getDate();
+            for (let i = startDayOfWeek - 1; i >= 0; i--) {
+                const dayNum = prevLastDay - i;
+                const cell = document.createElement('div');
+                cell.className = "bg-slate-50/50 p-1.5 text-slate-300 min-h-[100px] text-xs font-medium";
+                cell.innerHTML = `<span>${dayNum}</span>`;
+                grid.appendChild(cell);
+            }
+
+            // Current month days
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            for (let day = 1; day <= totalDays; day++) {
+                const monthStr = String(currentMonth + 1).padStart(2, '0');
+                const dayStr = String(day).padStart(2, '0');
+                const dateIso = `${currentYear}-${monthStr}-${dayStr}`;
+
+                const curDateObj = new Date(currentYear, currentMonth, day);
+                const dayOfWeek = curDateObj.getDay();
+
+                const isToday = (dateIso === todayStr);
+
+                const cell = document.createElement('div');
+                let bgClass = "bg-white hover:bg-slate-50/80";
+                if (dayOfWeek === 0) bgClass = "bg-rose-50/20"; // Sunday
+                if (dayOfWeek === 6) bgClass = "bg-blue-50/20"; // Saturday
+
+                cell.className = `${bgClass} p-2 border-t border-l border-slate-100 min-h-[110px] transition relative flex flex-col justify-start custom-scrollbar overflow-y-auto`;
+
+                // Header number
+                let numColor = "text-slate-700";
+                if (dayOfWeek === 0) numColor = "text-rose-500 font-semibold";
+                if (dayOfWeek === 6) numColor = "text-blue-500 font-semibold";
+
+                let todayBadge = isToday ? `<span class="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow">오늘</span>` : `<span>${day}</span>`;
+
+                cell.innerHTML = `<div class="flex items-center justify-between mb-1.5 ${numColor} text-xs font-bold">${todayBadge}</div>`;
+
+                // Render Audits on this date
+                const activeAudits = audits.filter(a => dateIso >= a.startDate && dateIso <= a.endDate);
+                activeAudits.forEach(aud => {
+                    let badgeBg = "bg-blue-100 text-blue-800 border-blue-200";
+                    if (aud.type === "자금세탁검사") badgeBg = "bg-purple-100 text-purple-800 border-purple-200";
+                    if (aud.type === "부문검사") badgeBg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                    if (aud.type === "합병검사") badgeBg = "bg-rose-100 text-rose-800 border-rose-200";
+
+                    const badge = document.createElement('div');
+                    badge.className = `p-1 px-1.5 rounded border text-[11px] leading-tight font-semibold mb-1 shadow-xs cursor-pointer truncate ${badgeBg}`;
+                    badge.title = `${aud.dept} [${aud.type}] (${aud.startDate} ~ ${aud.endDate})\n팀장: ${aud.teamLeader}\n영역: 조직(${aud.domainOrg}), 회계(${aud.domainAcc}), 여신(${aud.domainCredit}), 사고(${aud.domainRisk})`;
+                    badge.innerHTML = `<i class="fa-solid fa-building text-[10px]"></i> ${aud.dept} (${aud.type.substring(0,2)})`;
+                    badge.onclick = (e) => {
+                        e.stopPropagation();
+                        openAuditModal(aud.id);
+                    };
+                    cell.appendChild(badge);
+                });
+
+                // Render Vacations on this date
+                const activeVacations = vacations.filter(v => dateIso >= v.startDate && dateIso <= v.endDate);
+                activeVacations.forEach(vac => {
+                    const badge = document.createElement('div');
+                    badge.className = "p-1 px-1.5 rounded border border-amber-200 bg-amber-100 text-amber-900 text-[10px] font-medium mb-1 truncate flex items-center gap-1";
+                    badge.title = `${vac.memberName} 휴가 (${vac.reason || '사유 미기재'})`;
+                    badge.innerHTML = `<i class="fa-solid fa-umbrella-beach text-amber-600"></i> ${vac.memberName} (휴가)`;
+                    cell.appendChild(badge);
+                });
+
+                grid.appendChild(cell);
+            }
+
+            // Next month tail days
+            const totalCellsSoFar = startDayOfWeek + totalDays;
+            const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
+            for (let i = 1; i <= remainingCells; i++) {
+                const cell = document.createElement('div');
+                cell.className = "bg-slate-50/50 p-1.5 text-slate-300 min-h-[100px] text-xs font-medium";
+                cell.innerHTML = `<span>${i}</span>`;
+                grid.appendChild(cell);
+            }
+        }
+
+        function renderDashboard() {
+            // Update Stats
+            document.getElementById('stat-total-audits').innerText = `${audits.length}건`;
+            const amlCount = audits.filter(a => a.type === '자금세탁검사').length;
+            document.getElementById('stat-aml-count').innerText = `${amlCount}건`;
+            document.getElementById('stat-team-count').innerText = `${teamMembers.length}명`;
+            document.getElementById('stat-vacation-count').innerText = `${vacations.length}건`;
+
+            // Chart 1: Audit Types
+            const typeCounts = {
+                '종합검사': 0,
+                '자금세탁검사': 0,
+                '부문검사': 0,
+                '합병검사': 0,
+                '기타': 0
+            };
+
+            audits.forEach(a => {
+                if (typeCounts[a.type] !== undefined) {
+                    typeCounts[a.type]++;
+                } else {
+                    typeCounts['기타']++;
+                }
+            });
+
+            const ctxType = document.getElementById('typeChart').getContext('2d');
+            if (typeChartInstance) typeChartInstance.destroy();
+
+            typeChartInstance = new Chart(ctxType, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{
+                        data: Object.values(typeCounts),
+                        backgroundColor: ['#3b82f6', '#a855f7', '#10b981', '#f43f5e', '#64748b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // Chart 2: Domain Workload (4 key audit areas)
+            const ctxDomain = document.getElementById('domainChart').getContext('2d');
+            if (domainChartInstance) domainChartInstance.destroy();
+
+            domainChartInstance = new Chart(ctxDomain, {
+                type: 'bar',
+                data: {
+                    labels: ['조직일반', '경영회계', '여신관리', '사고예방'],
+                    datasets: [{
+                        label: '검사 영역별 투입 횟수',
+                        data: [audits.length, audits.length, audits.length, audits.length], // Each audit covers these 4 domains
+                        backgroundColor: ['#6366f1', '#0ea5e9', '#f59e0b', '#ec4899']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Visual Timeline Rendering
+            const timelineContainer = document.getElementById('timeline-container');
+            timelineContainer.innerHTML = '';
+
+            if (audits.length === 0) {
+                timelineContainer.innerHTML = `<p class="text-sm text-slate-400 italic">등록된 검사 일정이 없습니다.</p>`;
+                return;
+            }
+
+            audits.forEach(a => {
+                let badgeColor = "bg-blue-600";
+                if (a.type === '자금세탁검사') badgeColor = "bg-purple-600";
+                if (a.type === '부문검사') badgeColor = "bg-emerald-600";
+                if (a.type === '합병검사') badgeColor = "bg-rose-600";
+
+                const item = document.createElement('div');
+                item.className = "p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2";
+                item.innerHTML = `
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full ${badgeColor}"></span>
+                            <h4 class="font-bold text-slate-800 text-base">${a.dept}</h4>
+                            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-slate-200 text-slate-700">${a.type}</span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
+                            <i class="fa-regular fa-clock text-indigo-600"></i> ${a.startDate} ~ ${a.endDate} (주중 ${a.durationDays}일)
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-600 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-2 border-t border-slate-200">
+                        <div><strong class="text-slate-800">👑 팀장:</strong> ${a.teamLeader}</div>
+                        <div><strong class="text-slate-800">🏢 조직일반:</strong> ${a.domainOrg}</div>
+                        <div><strong class="text-slate-800">📊 경영회계:</strong> ${a.domainAcc}</div>
+                        <div><strong class="text-slate-800">💳 여신관리:</strong> ${a.domainCredit}</div>
+                        <div><strong class="text-slate-800">🛡️ 사고예방:</strong> ${a.domainRisk}</div>
+                    </div>
+                `;
+                timelineContainer.appendChild(item);
+            });
+        }
+
+        function renderAuditTable() {
+            const filterType = document.getElementById('filter-type').value;
+            const tbody = document.getElementById('audit-table-body');
+            tbody.innerHTML = '';
+
+            let filtered = audits;
+            if (filterType !== 'ALL') {
+                filtered = audits.filter(a => a.type === filterType);
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">검사 내역이 존재하지 않습니다.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(a => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+
+                let badgeBg = "bg-blue-100 text-blue-800";
+                if (a.type === "자금세탁검사") badgeBg = "bg-purple-100 text-purple-800";
+                if (a.type === "부문검사") badgeBg = "bg-emerald-100 text-emerald-800";
+                if (a.type === "합병검사") badgeBg = "bg-rose-100 text-rose-800";
+
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-800">${a.dept}</td>
+                    <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeBg}">${a.type}</span></td>
+                    <td class="p-3 text-xs font-medium text-slate-600">주중 ${a.durationDays}일</td>
+                    <td class="p-3 text-xs font-semibold text-slate-700">${a.startDate} ~ ${a.endDate}</td>
+                    <td class="p-3 text-xs text-slate-600">
+                        <span class="font-bold text-indigo-700">팀장: ${a.teamLeader}</span><br>
+                        팀원: ${a.domainOrg}, ${a.domainAcc}, ${a.domainCredit}, ${a.domainRisk}
+                    </td>
+                    <td class="p-3 text-xs text-slate-500">
+                        조직: ${a.domainOrg} / 회계: ${a.domainAcc}<br>여신: ${a.domainCredit} / 사고: ${a.domainRisk}
+                    </td>
+                    <td class="p-3 text-center space-x-1">
+                        <button onclick="openAuditModal('${a.id}')" class="text-indigo-600 hover:text-indigo-900 p-1 font-medium text-xs">수정</button>
+                        <button onclick="deleteAudit('${a.id}')" class="text-rose-600 hover:text-rose-900 p-1 font-medium text-xs">삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteAudit(id) {
+            if (confirm("이 검사 일정을 삭제하시겠습니까?")) {
+                audits = audits.filter(a => a.id !== id);
+                renderAuditTable();
+                renderCalendar();
+            }
+        }
+
+        function renderTeamAndVacation() {
+            // Team Roster
+            const teamList = document.getElementById('team-roster-list');
+            teamList.innerHTML = '';
+
+            teamMembers.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between";
+                
+                let isLeader = m.role === '팀장';
+                let icon = isLeader ? '<i class="fa-solid fa-crown text-amber-500"></i>' : '<i class="fa-solid fa-user-check text-indigo-500"></i>';
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-sm">
+                            ${icon}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${m.name} <span class="text-xs text-slate-500">(${m.role})</span></h4>
+                            <p class="text-xs text-slate-500">주담당: ${m.primaryDomain}</p>
+                        </div>
+                    </div>
+                `;
+                teamList.appendChild(card);
+            });
+
+            // Vacation Table
+            const tbody = document.getElementById('vacation-table-body');
+            tbody.innerHTML = '';
+
+            if (vacations.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">등록된 팀원 휴가 일정이 없습니다.</td></tr>`;
+                return;
+            }
+
+            vacations.forEach(v => {
+                const m = teamMembers.find(tm => tm.id === v.memberId) || { role: '검사역', primaryDomain: '검사' };
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-800">${v.memberName}</td>
+                    <td class="p-3 text-xs text-slate-600">${m.role} (${m.primaryDomain})</td>
+                    <td class="p-3 text-xs font-semibold text-slate-700">${v.startDate}</td>
+                    <td class="p-3 text-xs font-semibold text-slate-700">${v.endDate}</td>
+                    <td class="p-3 text-xs text-slate-500">${v.reason || '연차휴가'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteVacation('${v.id}')" class="text-rose-600 hover:text-rose-900 text-xs font-medium">삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteVacation(id) {
+            if (confirm("이 휴가 일정을 삭제하시겠습니까?")) {
+                vacations = vacations.filter(v => v.id !== id);
+                renderTeamAndVacation();
+                renderCalendar();
+            }
+        }
+
+        function populateMemberDropdowns() {
+            const leaderSelect = document.getElementById('assign-leader');
+            const orgSelect = document.getElementById('assign-org');
+            const accSelect = document.getElementById('assign-acc');
+            const creditSelect = document.getElementById('assign-credit');
+            const riskSelect = document.getElementById('assign-risk');
+            const vacMemberSelect = document.getElementById('vacation-member');
+
+            const dropdowns = [leaderSelect, orgSelect, accSelect, creditSelect, riskSelect, vacMemberSelect];
+            dropdowns.forEach(d => d.innerHTML = '');
+
+            teamMembers.forEach(m => {
+                const opt = `<option value="${m.name}">${m.name} (${m.role} - ${m.primaryDomain})</option>`;
+                leaderSelect.innerHTML += opt;
+                orgSelect.innerHTML += opt;
+                accSelect.innerHTML += opt;
+                creditSelect.innerHTML += opt;
+                riskSelect.innerHTML += opt;
+
+                const vacOpt = `<option value="${m.id}">${m.name} (${m.role})</option>`;
+                vacMemberSelect.innerHTML += vacOpt;
+            });
+
+            // Set defaults for nice assignment
+            if (teamMembers.length >= 5) {
+                leaderSelect.value = teamMembers[0].name;
+                orgSelect.value = teamMembers[1].name;
+                accSelect.value = teamMembers[2].name;
+                creditSelect.value = teamMembers[3].name;
+                riskSelect.value = teamMembers[4].name;
+            }
+        }
+
+        function openAuditModal(auditId = null) {
+            populateMemberDropdowns();
+            const modal = document.getElementById('auditModal');
+            const title = document.getElementById('modal-title');
+            const form = document.getElementById('auditForm');
+
+            form.reset();
+            document.getElementById('audit-id').value = '';
+
+            if (auditId) {
+                const existing = audits.find(a => a.id === auditId);
+                if (existing) {
+                    title.innerText = "검사 일정 수정";
+                    document.getElementById('audit-id').value = existing.id;
+                    document.getElementById('audit-dept').value = existing.dept;
+                    document.getElementById('audit-type').value = existing.type;
+                    document.getElementById('audit-start-date').value = existing.startDate;
+                    document.getElementById('audit-duration').value = existing.durationDays;
+                    document.getElementById('assign-leader').value = existing.teamLeader;
+                    document.getElementById('assign-org').value = existing.domainOrg;
+                    document.getElementById('assign-acc').value = existing.domainAcc;
+                    document.getElementById('assign-credit').value = existing.domainCredit;
+                    document.getElementById('assign-risk').value = existing.domainRisk;
+                    document.getElementById('audit-memo').value = existing.memo || '';
+                    calculateEndDate();
+                }
+            } else {
+                title.innerText = "새 검사 일정 등록";
+                const todayIso = new Date().toISOString().split('T')[0];
+                document.getElementById('audit-start-date').value = todayIso;
+                calculateEndDate();
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeAuditModal() {
+            document.getElementById('auditModal').classList.add('hidden');
+        }
+
+        function handleAuditSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('audit-id').value;
+            const dept = document.getElementById('audit-dept').value;
+            const type = document.getElementById('audit-type').value;
+            const startDate = document.getElementById('audit-start-date').value;
+            const durationDays = parseInt(document.getElementById('audit-duration').value);
+            const endDate = addWeekdays(startDate, durationDays);
+
+            const teamLeader = document.getElementById('assign-leader').value;
+            const domainOrg = document.getElementById('assign-org').value;
+            const domainAcc = document.getElementById('assign-acc').value;
+            const domainCredit = document.getElementById('assign-credit').value;
+            const domainRisk = document.getElementById('assign-risk').value;
+            const memo = document.getElementById('audit-memo').value;
+
+            if (id) {
+                // Edit
+                const idx = audits.findIndex(a => a.id === id);
+                if (idx !== -1) {
+                    audits[idx] = { id, dept, type, durationDays, startDate, endDate, teamLeader, domainOrg, domainAcc, domainCredit, domainRisk, memo };
+                }
+            } else {
+                // Create
+                const newAudit = {
+                    id: "aud-" + Date.now(),
+                    dept, type, durationDays, startDate, endDate,
+                    teamLeader, domainOrg, domainAcc, domainCredit, domainRisk, memo
+                };
+                audits.push(newAudit);
+            }
+
+            closeAuditModal();
+            renderCalendar();
+            renderAuditTable();
+        }
+
+        function openVacationModal() {
+            populateMemberDropdowns();
+            const modal = document.getElementById('vacationModal');
+            document.getElementById('vacationForm').reset();
+            const todayIso = new Date().toISOString().split('T')[0];
+            document.getElementById('vacation-start').value = todayIso;
+            document.getElementById('vacation-end').value = todayIso;
+            modal.classList.remove('hidden');
+        }
+
+        function closeVacationModal() {
+            document.getElementById('vacationModal').classList.add('hidden');
+        }
+
+        function handleVacationSubmit(e) {
+            e.preventDefault();
+            const memberId = document.getElementById('vacation-member').value;
+            const memberObj = teamMembers.find(m => m.id === memberId);
+            const startDate = document.getElementById('vacation-start').value;
+            const endDate = document.getElementById('vacation-end').value;
+            const reason = document.getElementById('vacation-reason').value;
+
+            if (startDate > endDate) {
+                alert("종료일은 시작일보다 빠를 수 없습니다.");
+                return;
+            }
+
+            const newVacation = {
+                id: "vac-" + Date.now(),
+                memberId: memberId,
+                memberName: memberObj ? memberObj.name : "검사역",
+                startDate,
+                endDate,
+                reason
+            };
+
+            vacations.push(newVacation);
+            closeVacationModal();
+            renderTeamAndVacation();
+            renderCalendar();
+        }
+
+        window.onload = function() {
+            renderCalendar();
+            renderTeamAndVacation();
+            renderAuditTable();
+        };
+    </script>
+</body>
+</html>
